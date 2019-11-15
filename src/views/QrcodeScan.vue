@@ -2,26 +2,30 @@
   <v-card min-height="100%">
     <!--顶层菜单-->
     <v-toolbar
-      absolute
       dark
-      flat
-      :style="style"
-      tabs
+      color="primary"
     >
       <v-btn icon @click="goToHome">
-        <v-icon>arrow_back</v-icon>
+        <v-icon>mdi-arrow-left</v-icon>
       </v-btn>
       <v-toolbar-title>扫描二维码</v-toolbar-title>
-      <v-spacer></v-spacer>
+      <div class="flex-grow-1"></div>
       <v-btn icon v-if="convertCamera" @click="switchCamera">
-        <v-icon>switch_camera</v-icon>
+        <v-icon>mdi-camera-switch</v-icon>
       </v-btn>
       <v-btn icon @click="imgClick">
-        <v-icon>add_a_photo</v-icon>
+        <v-icon>mdi-camera</v-icon>
       </v-btn>
     </v-toolbar>
 
-    <qrcode-stream :key="_uid" :track="selected.value" :camera="camera" @decode="onDecode" @init="onInit" v-if="!destroyed">
+    <qrcode-stream
+      :key="_uid"
+      :track="selected.value"
+      :camera="camera"
+      @decode="onDecode"
+      @init="onInit"
+      v-if="!destroyed"
+    >
       <div v-if="loading" class="validation-pending" >
         Loading...
       </div>
@@ -441,6 +445,17 @@ export default {
   /*  display: none;*/
   /*  left: 0;*/
   /*}*/
+
+  .camera, .pause-frame {
+    transform: translateX(-50%) translateY(-50%);
+    top: 50%;
+    left: 50%;
+    min-width: 100%;
+    min-height: 100%;
+    width: auto;
+    height: auto;
+    position: absolute;
+  }
 </style>
 
 <!--<style>-->

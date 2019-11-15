@@ -8,445 +8,388 @@
       <v-btn icon @click="goToHome">
         <v-icon>mdi-arrow-left</v-icon>
       </v-btn>
-      <v-toolbar-title>扫描二维码</v-toolbar-title>
-      <div class="flex-grow-1"></div>
-      <v-btn icon v-if="convertCamera" @click="switchCamera">
-        <v-icon>mdi-camera-switch</v-icon>
-      </v-btn>
-      <v-btn icon @click="imgClick">
-        <v-icon>mdi-camera</v-icon>
-      </v-btn>
+      <v-toolbar-title>人脸检测</v-toolbar-title>
     </v-toolbar>
 
-    <qrcode-stream :key="_uid" :track="selected.value" :camera="camera" @decode="onDecode" @init="onInit" v-if="!destroyed">
-      <div v-if="loading" class="validation-pending" >
-        Loading...
+    <div id="facelogin">
+<!--      <h1 class="title is-1">{{FaceisDetected}}</h1>-->
+<!--       <p>{{FaceisDetected}}</p>-->
+      <div class="content-cam">
+        <div class="camera-wrp sec">
+<!--          <video ref="videoDom" id="video_cam" preload autoplay loop muted></video>-->
+<!--          <canvas ref="canvasDOM" id="face_detect"></canvas>-->
+            <video class="video" width="320" height="240" ref="videoDom" id="video_cam" preload autoplay loop muted></video>
+            <canvas width="320" height="240" ref="canvasDOM" ></canvas>
+          <div class="control-btn"></div>
+        </div>
+        <div class="images-wrp sec">
+           <p class="title is-5">Image taken</p>
+          <div
+            v-for="(image, index) in images"
+            :class="`img-item img-item-${index}`"
+            :key="`img-wrp-${index}`"
+            :style="`height:240px; width: 320px; background: url('${image}')`"
+          ></div>
+        </div>
       </div>
-
-      <div v-if="validationSuccess" class="validation-success">
-        二维码有效，处理中...
-      </div>
-
-      <div v-if="validationFailure" class="validation-failure">
-        {{ result }}，这不是一个合法有效的二维码，请检查!
-      </div>
-
-      <div v-if="validationPending" class="validation-pending">
-        {{ result }}，二维码验证过程中，请稍后...
-      </div>
-    </qrcode-stream>
-    <qrcode-capture v-show="inputView" @detect="onDetect" />
-
-<!--    <div class="app__overlay">-->
-<!--      <div class="app__overlay-frame"></div>-->
-<!--      &lt;!&ndash; Scanner animation &ndash;&gt;-->
-<!--      <div class="custom-scanner"></div>-->
-<!--      <div class="app__help-text"></div>-->
-<!--    </div>-->
+    </div>
 
   </v-card>
 </template>
 
 <script>
-import { QrcodeStream, QrcodeCapture } from 'vue-qrcode-reader'
-const axios = require('axios')
+require('tracking/build/tracking-min.js')
+require('tracking/build/data/face-min.js')
+require('tracking/build/data/mouth-min.js')
+require('tracking/examples/assets/stats.min.js')
 
+const axios = require('axios')
 export default {
-  name: 'QrcodeScan',
-  components: { QrcodeStream, QrcodeCapture },
+  name: 'FaceDetect',
 
   data () {
-    const options = [
-      { text: 'None', value: false },
-      { text: 'Red square (default)', value: true },
-      { text: 'Green text', value: this.paintGreenText },
-      { text: 'Blue dots', value: this.paintBlueDots }
-    ]
-
-    const selected = options[2]
-
     return {
-      style: { background: 'rgba(0,0,0, 0.6)' },
-      bottomNav: 'scan',
-      error: '',
-      camera: 'rear',
-      isValid: undefined,
-      noRearCamera: false,
-      noFrontCamera: false,
-      convertCamera: false,
-      noStreamApiSupport: false,
-      selected,
-      options,
-      result: null,
-      inputView: false,
-      loading: false,
-      destroyed: false
+      faceSrc: new Image(),
+      count: 0,
+      isdetected: '请您保持脸部在画面中央',
+      videoEl: {},
+      canvasEL: {},
+      images: [],
+      trackCcv: false,
+      trackTracking: false,
+      autoCaptureTrackTraking: false,
+      userMediaConstraints: {
+        audio: false,
+        video: {
+          // ideal（应用最理想的）
+          width: {
+            min: 320,
+            ideal: 1280,
+            max: 1920
+          },
+          height: {
+            min: 240,
+            ideal: 720,
+            max: 1080
+          },
+          // frameRate受限带宽传输时，低帧率可能更适宜
+          frameRate: {
+            min: 15,
+            ideal: 30,
+            max: 60
+          },
+          // 摄像头翻转
+          facingMode: 'user'
+        }
+      }
     }
-  },
-
-  mounted () {
-    // TODO:需要修改input属性，在移动终端设备上点击时打开图片文件夹而非拍照功能
-    let domInput = document.getElementsByName('image').item(0)
-    domInput.removeAttribute('capture')
   },
 
   computed: {
-    // eslint-disable-next-line vue/return-in-computed-property
-    paintBlueDots (location, ctx) {
-      const {
-        topLeftFinderPattern,
-        topRightFinderPattern,
-        bottomLeftFinderPattern
-      } = location
-
-      const pointArray = [
-        topLeftFinderPattern,
-        topRightFinderPattern,
-        bottomLeftFinderPattern
-      ]
-
-      ctx.fillStyle = '#007bff'
-
-      pointArray.forEach(({ x, y }) => {
-        ctx.fillRect(x - 5, y - 5, 10, 10)
-      })
-    },
-
-    // eslint-disable-next-line vue/return-in-computed-property
-    paintGreenText (location, ctx) {
-      const {
-        topLeftCorner,
-        topRightCorner,
-        bottomLeftCorner,
-        bottomRightCorner
-      } = location
-
-      const pointArray = [
-        topLeftCorner,
-        topRightCorner,
-        bottomLeftCorner,
-        bottomRightCorner
-      ]
-
-      const centerX = pointArray.reduce((sum, { x }) => x + sum, 0) / 4
-      const centerY = pointArray.reduce((sum, { y }) => y + sum, 0) / 4
-
-      ctx.font = 'bold 24px sans-serif'
-      ctx.textAlign = 'center'
-
-      ctx.lineWidth = 3
-      ctx.strokeStyle = '#35495e'
-      ctx.strokeText(this.result, centerX, centerY)
-
-      ctx.fillStyle = '#5cb984'
-      ctx.fillText(this.result, centerX, centerY)
-    },
-
-    validationPending () {
-      return this.isValid === undefined &&
-        this.camera === 'off'
-    },
-
-    validationSuccess () {
-      return this.isValid === true
-    },
-
-    validationFailure () {
-      return this.isValid === false
+    FaceisDetected () {
+      return this.isdetected
     }
   },
+  created () {
+    this.changeView()
+  },
 
+  mounted () {
+    // The getUserMedia interface is used for handling camera input.
+    // Some browsers need a prefix so here we're covering all the options
+    navigator.getMedia =
+        navigator.getUserMedia ||
+        navigator.webkitGetUserMedia ||
+        navigator.mozGetUserMedia ||
+        navigator.msGetUserMedia
+    this.init()
+  },
   methods: {
-    // onDecode (result) {
-    //   this.result = result
-    // },
+    async init () {
+      this.videoEl = this.$refs.videoDom
+      this.canvasEL = this.$refs.canvasDOM
+      await navigator.mediaDevices
+        .getUserMedia(this.userMediaConstraints)
+        .then(this.getMediaStreamSuccess)
+        .catch(this.getMediaStreamError)
+      await this.onPlay()
+    },
+    async onPlay () {
+      // debugHelper.log('onPlay')
 
-    switchCamera () {
-      switch (this.camera) {
-        case 'front':
-          this.camera = 'rear'
-          break
-        case 'rear':
-          this.camera = 'front'
-          break
-      }
+      this.onTrackTracking()
+    },
+    changeView () {
+      // this.setTitle('刷脸登陆')
+      // this.setBackDisabled(false)
+      // this.setBackIcon('arrow_back')
+      // msgbus.vm.setBottomNavVisible(false)
+      // msgbus.vm.setBottomBtnVisible(false)
+      // msgbus.vm.setMsgInputVisible({ value: false })
     },
 
-    logErrors (promise) {
-      promise.catch(console.error)
-    },
+    onTrackTracking () {
+      const context = this
+      const video = this.videoEl
+      const canvas = this.canvasEL
+      const canvasContext = canvas.getContext('2d')
+      let tracker = new tracking.ObjectTracker('face')
 
-    async onInit (promise) {
-      this.loading = true
-      try {
-        await promise
-      } catch (error) {
-        if (error.name === 'StreamApiNotSupportedError') {
-          this.noStreamApiSupport = true
-        }
+      // video.pause()
+      // video.src = ''
+      tracker.setInitialScale(4)
+      tracker.setStepSize(2)
+      tracker.setEdgesDensity(0.1)
+      tracking.track('#video_cam', tracker, { camera: true })
+      tracker.on('track', function (event) {
+        const { autoCaptureTrackTraking } = context
+        canvasContext.clearRect(0, 0, canvas.width, canvas.height)
+        event.data.forEach(function ({ x, y, width, height }) {
+          // 识别的人脸区域框颜色设置
+          canvasContext.strokeStyle = '#DC143C'
+          canvasContext.strokeRect(x, y, width, height)
+          canvasContext.font = '11px Helvetica'
+          canvasContext.fillStyle = '#fff'
+          canvasContext.fillText('x: ' + x + 'x', x + width + 5, y + 11)
+          canvasContext.fillText('y: ' + y + 'px', x + width + 5, y + 22)
+          // context.onTakeCam()
+          // console.log('detect face： x=' + x + ' y=' + y + ' width=' + width + ' height=' + height)
+        })
+        // event.data.forEach(function (rect) {
+        //   plotRectangle(rect.x, rect.y, rect.width, rect.height)
+        // })
 
-        const triedFrontCamera = this.camera === 'front'
-        const triedRearCamera = this.camera === 'rear'
-        const cameraMissingError = error.name === 'OverconstrainedError'
-
-        if (triedRearCamera && cameraMissingError) {
-          this.noRearCamera = true
-        }
-
-        if (triedFrontCamera && cameraMissingError) {
-          this.noFrontCamera = true
-        }
-
-        // 只有前置、后置摄像头都有时才在顶部菜单区显示转换摄像头按钮
-        if (this.noRearCamera || this.noFrontCamera) {
-          this.convertCamera = false
-        } else {
-          this.convertCamera = true
-        }
-        console.error(error)
-      } finally {
-        this.loading = false
-      }
-    },
-
-    repaint (location, ctx) {
-      const {
-        topLeftCorner,
-        topRightCorner,
-        bottomLeftCorner,
-        bottomRightCorner
-        // topLeftFinderPattern,
-        // topRightFinderPattern,
-        // bottomLeftFinderPattern
-      } = location
-
-      ctx.strokeStyle = 'blue' // instead of red
-
-      ctx.beginPath()
-      ctx.moveTo(topLeftCorner.x, topLeftCorner.y)
-      ctx.lineTo(bottomLeftCorner.x, bottomLeftCorner.y)
-      ctx.lineTo(bottomRightCorner.x, bottomRightCorner.y)
-      ctx.lineTo(topRightCorner.x, topRightCorner.y)
-      ctx.lineTo(topLeftCorner.x, topLeftCorner.y)
-      ctx.closePath()
-
-      ctx.stroke()
-    },
-
-    // 检测选择的图片文件
-    async onDetect (promise) {
-      try {
-        const {
-          imageData, // raw image data of image/frame
-          content, // decoded String or null
-          location // QR code coordinates or null
-        } = await promise
-
-        if (content === null) {
-          // decoded nothing
-          console.log('decoded nothing')
-        } else {
-          // 一次解析成功后，应该关闭摄像头
-          this.turnCameraOff()
-
-          // 简单验证是否为URL连接
-          this.isValid = content.startsWith('http')
-          //
-          // // some more delay, so users have time to read the message
-          // await this.timeout(2000)
-
-          if (this.isValid) {
-            console.log('Scan url is:' + content)
-            this.goToLink(content)
+        // if (!isEmpty(event.data) && context.count <= 10) {
+        if (event.data.length !== 0 && context.count <= 10) {
+          if (context.count < 0) {
+            context.count = 0
           }
-
-          // console.log('decoded image! content:' + content)
-        }
-      } catch (error) {
-        // ...
-      }
-    },
-
-    async onDecode (content) {
-      this.result = content
-      this.turnCameraOff()
-
-      // pretend it's taking really long
-      await this.timeout(2000)
-
-      // 简单验证是否为URL连接
-      this.isValid = content.startsWith('http')
-
-      // some more delay, so users have time to read the message
-      await this.timeout(2000)
-
-      if (this.isValid) {
-        console.log('Scan url is:' + content)
-        this.goToLink(content)
-      }
-
-      // 一次解析成功后，应该关闭摄像头
-      // this.turnCameraOn()
-    },
-
-    turnCameraOn () {
-      this.camera = 'auto'
-    },
-
-    turnCameraOff () {
-      this.camera = 'off'
-    },
-
-    timeout (ms) {
-      return new Promise(resolve => {
-        window.setTimeout(resolve, ms)
-      })
-    },
-
-    // async onInit (promise) {
-    //   try {
-    //     await promise
-    //   } catch (error) {
-    //     if (error.name === 'NotAllowedError') {
-    //       this.error = 'ERROR: you need to grant camera access permisson'
-    //     } else if (error.name === 'NotFoundError') {
-    //       this.error = 'ERROR: no camera on this device'
-    //     } else if (error.name === 'NotSupportedError') {
-    //       this.error = 'ERROR: secure context required (HTTPS, localhost)'
-    //     } else if (error.name === 'NotReadableError') {
-    //       this.error = 'ERROR: is the camera already in use?'
-    //     } else if (error.name === 'OverconstrainedError') {
-    //       this.error = 'ERROR: installed cameras are not suitable'
-    //     } else if (error.name === 'StreamApiNotSupportedError') {
-    //       this.error = 'ERROR: Stream API is not supported in this browser'
-    //     }
-    //   }
-    // },
-
-    // 图片click
-    imgClick () {
-      // console.log(document.getElementsByName('image'))
-      document.getElementsByName('image').item(0).click()
-    },
-
-    goToLink (url) {
-      axios.get(url).then((response) => {
-        if (response.data === 0) {
-          console.log('goToLink failure, no data return!')
+          context.count += 1
+          console.log('已检测到人脸次数：' + context.count)
+          // debugHelper.log(context.count)
+          // 加入连续检测到人脸次数判断，主要是为了防止其它人脸飞入现象干扰
+          if (context.count > 10) {
+            context.isdetected = '已检测到人脸，正在登录'
+            // context.$router.push({ name: 'pwdlogin' })
+            //   context.onTakeCam()
+            context.count = 0
+          }
         } else {
-          console.log('goToLink eturn:' + response)
+          context.count -= 1
+          if (context.count < 0) {
+            context.isdetected = '请您保持脸部在画面中央'
+          }
+          // this.isdetected = '已检测到人脸，正在登录'
         }
-      }).catch(error => {
-        console.log('goToLink error:' + error)
       })
+      var friends = [ 'Thomas Middleditch', 'Martin Starr', 'Zach Woods' ]
+      var plotRectangle = function (x, y, w, h) {
+        console.log('plotRectangle detect face： x=' + x + ' y=' + y + ' width=' + w + ' height=' + h)
+        var rect = document.createElement('div')
+        var arrow = document.createElement('div')
+        var input = document.createElement('input')
+        input.value = friends.pop()
+        rect.onclick = function name () {
+          input.select()
+        }
+        arrow.classList.add('arrow')
+        rect.classList.add('rect')
+        rect.appendChild(input)
+        rect.appendChild(arrow)
+        document.getElementById('video_cam').appendChild(rect)
+        rect.style.width = w + 'px'
+        rect.style.height = h + 'px'
+        rect.style.left = (document.getElementById('video_cam').offsetLeft + x) + 'px'
+        rect.style.top = (document.getElementById('video_cam').offsetTop + y) + 'px'
+      }
+    },
+    onDownloadFile (item) {
+      const link = document.createElement('a')
+      link.href = item
+      link.download = `cahyo-${new Date().toISOString()}.png`
+      link.click()
+
+      link.remove()
+    },
+    onTakeCam () {
+      const canvas = document.createElement('canvas')
+      const video = this.$el.querySelector('#video_cam')
+      const canvasContext = canvas.getContext('2d')
+
+      if (video.videoWidth && video.videoHeight) {
+        const isBiggerW = video.videoWidth > video.videoHeight
+        const fixVidSize = isBiggerW ? video.videoHeight : video.videoWidth
+        let offsetLeft = 0
+        let offsetTop = 0
+
+        if (isBiggerW) offsetLeft = (video.videoWidth - fixVidSize) / 2
+        else offsetTop = (video.videoHeight - fixVidSize) / 2
+
+        // make canvas size 300px
+        canvas.width = canvas.height = 300
+        const { width, height } = canvas
+
+        canvasContext.drawImage(
+          video,
+          offsetLeft,
+          offsetTop,
+          fixVidSize,
+          fixVidSize,
+          0,
+          0,
+          width,
+          height
+        )
+        const image = canvas.toDataURL('image/png')
+        this.images.push(image)
+
+        console.log('detect face： offsetLeft=' + offsetLeft + ' offsetTop=' + offsetTop + ' fixVidSize=' + fixVidSize + ' fixVidSize=' +
+            fixVidSize + ' width=' + width + ' height=' + height)
+      }
+    },
+    onDetectFace (param, index) {
+      const imgItem = document.querySelector(`.img-item-${index}`)
+      const image = new Image()
+      image.src = param
+
+      const tracker = new tracking.ObjectTracker('face')
+      tracker.setStepSize(1.7)
+      tracking.track(image, tracker)
+
+      tracker.on('track', function (event) {
+        event.data.forEach(function (rect) {
+          window.plot(rect.x, rect.y, rect.width, rect.height)
+        })
+      })
+
+      window.plot = function (x, y, w, h) {
+        const rect = document.createElement('div')
+        document.querySelector(`.img-item-${index}`).appendChild(rect)
+        rect.classList.add('rect')
+        rect.style.width = w + 'px'
+        rect.style.height = h + 'px'
+        rect.style.left = x + 'px'
+        rect.style.top = y + 'px'
+        rect.style.border = '2px solid yellow'
+        rect.style.position = 'absolute'
+      }
+    },
+    getMediaStreamSuccess (stream) {
+      window.stream = stream // make stream available to browser console
+      this.videoEl.srcObject = stream
+      // debugHelper.log('getMediaStreamSuccess1')
+      // this.$store.commit('setVideoCanvasObject', this.videoEl)
+      // debugHelper.log('getMediaStreamSuccess2')
+    },
+    // 视频媒体流失败
+    getMediaStreamError (error) {
+      alert('视频媒体流获取错误' + error)
+    },
+
+    // 结束媒体流
+    stopMediaStreamTrack () {
+      clearInterval(this.timeInterval)
+      if (typeof window.stream === 'object') {
+        this.videoEl.srcObject = null
+        // this.$store.commit('setVideoCanvasObject', '')
+        window.stream.getTracks().forEach(track => track.stop())
+      }
     },
 
     goToHome () {
       this.$router.push('/')
     }
+  },
+
+  destroyed () {
+    this.stopMediaStreamTrack()
   }
 }
 </script>
 
-<style scoped>
-  /*.error {*/
-  /*  font-weight: bold;*/
-  /*  color: red;*/
+<style>
+  /** {*/
+  /*  padding: 0;*/
+  /*  margin: 0;*/
   /*}*/
-  .validation-success,
-  .validation-failure,
-  .validation-pending {
-    position: absolute;
-    width: 100%;
-    height: 100%;
-
-    background-color: rgba(255, 255, 255, .8);
-    text-align: center;
-    font-weight: bold;
-    font-size: 1.4rem;
-    padding: 10px;
-
-    display: flex;
-    flex-flow: column nowrap;
-    justify-content: center;
-  }
-  .validation-success {
-    color: green;
-  }
-  .validation-failure {
-    color: red;
-  }
-  /*.custom-scanner {*/
-  /*  width: 100%;*/
-  /*  height: 2px;*/
-  /*  background: #4CAF50;*/
+  /*.container {*/
+  /*  position: relative;*/
+  /*  width: 581px;*/
+  /*  height: 436px;*/
+  /*  float:left;*/
+  /*}*/
+  /*.message{*/
+  /*  float:left;*/
+  /*}*/
+  /*video, #canvas {*/
   /*  position: absolute;*/
-  /*  -webkit-transition: all 200ms linear;*/
-  /*  -moz-transition: all 200ms linear;*/
-  /*  transition: all 200ms linear;*/
-  /*  -webkit-animation: scanner 3s infinite linear;*/
-  /*  -moz-animation: scanner 3s infinite linear;*/
-  /*  -o-animation: scanner 3s infinite linear;*/
-  /*  animation: scanner 3s infinite linear;*/
-  /*  box-shadow: 0 1px 0 0 rgba(0, 0, 0, 0.4);*/
-  /*  !*display: none;*!*/
+  /*  width: 581px;*/
+  /*  height: 436px;*/
   /*}*/
-  /*.app__overlay {*/
-  /*  position: fixed;*/
-  /*  top: 0;*/
-  /*  bottom: 0;*/
-  /*  right: 0;*/
-  /*  left: 0;*/
-  /*  transition: all 200ms ease-in;*/
-  /*  width: 320px;*/
-  /*  height: 320px;*/
-  /*  margin: auto;*/
-  /*}*/
-  /*.app__overlay-left,*/
-  /*.app__overlay-right {*/
-  /*  width: 52px;*/
-  /*  height: 340px;*/
-  /*  background: #7f7f7f;*/
-  /*}*/
-
-  /*.app__overlay-left {*/
-  /*  margin-left: -57px;*/
-  /*  margin-top: -10px;*/
-  /*}*/
-
-  /*.app__overlay-right {*/
-  /*  margin-right: -57px;*/
-  /*  margin-top: -340px;*/
-  /*  float: right;*/
-  /*}*/
-
-  /*.app__overlay {*/
-  /*  border: 0;*/
-  /*}*/
-  /*.app__help-text,*/
-  /*.app__select-photos {*/
-  /*  color: #fff;*/
+  /*video, #canvas {*/
   /*  position: absolute;*/
-  /*  bottom: -70px;*/
-  /*  font-size: 18px;*/
-  /*  right: 0;*/
+  /*  width: 375px;*/
+  /*  height: 812px;*/
+  /*}*/
+  /*#photo:hover .rect {*/
+  /*  opacity: .75;*/
+  /*  transition: opacity .75s ease-out;*/
+  /*}*/
+  /*.rect:hover * {*/
+  /*  opacity: 1;*/
+  /*}*/
+  /*.rect {*/
+  /*  border-radius: 2px;*/
+  /*  border: 3px solid white;*/
+  /*  box-shadow: 0 16px 28px 0 rgba(0, 0, 0, 0.3);*/
+  /*  cursor: pointer;*/
+  /*  left: -1000px;*/
+  /*  opacity: 0;*/
+  /*  position: absolute;*/
+  /*  top: -1000px;*/
+  /*}*/
+  /*.arrow {*/
+  /*  border-bottom: 10px solid white;*/
+  /*  border-left: 10px solid transparent;*/
+  /*  border-right: 10px solid transparent;*/
+  /*  height: 0;*/
+  /*  width: 0;*/
+  /*  position: absolute;*/
+  /*  left: 50%;*/
+  /*  margin-left: -5px;*/
+  /*  bottom: -12px;*/
+  /*  opacity: 0;*/
+  /*}*/
+  /*input {*/
+  /*  border: 0px;*/
+  /*  bottom: -42px;*/
+  /*  color: #a64ceb;*/
+  /*  font-size: 15px;*/
+  /*  height: 30px;*/
+  /*  left: 50%;*/
+  /*  margin-left: -90px;*/
+  /*  opacity: 0;*/
+  /*  outline: none;*/
+  /*  position: absolute;*/
   /*  text-align: center;*/
-  /*  user-select: none;*/
+  /*  width: 180px;*/
+  /*  transition: opacity .35s ease-out;*/
   /*}*/
+  /*#img {*/
+  /*  position: absolute;*/
+  /*  top: 50%;*/
+  /*  left: 50%;*/
+  /*  margin: -173px 0 0 -300px;*/
+  /*}*/
+  video, #canvas  {
+    transform: translateX(-50%) translateY(-50%);
+    top: 50%;
+    left: 50%;
+    min-width: 100%;
+    min-height: 100%;
+    width: auto;
+    height: auto;
+    position: absolute;
+  }
 
-  /*.app__help-text {*/
-  /*  display: none;*/
-  /*  left: 0;*/
-  /*}*/
 </style>
-
-<!--<style>-->
-<!--  .wrapper {-->
-<!--    /*display: block!important;*/-->
-<!--    /*min-height: 100%;*/-->
-<!--    poisition: absolute;-->
-<!--    left: 200px;-->
-<!--    top: 40px;-->
-<!--    height: 600px;-->
-<!--  }-->
-<!--</style>-->

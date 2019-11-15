@@ -2,7 +2,7 @@
   <v-dialog v-model="dialog" fullscreen hide-overlay transition="dialog-bottom-transition">
     <!--入口按钮-->
     <template v-slot:activator="{ on }">
-      <v-btn flat icon >
+      <v-btn text icon >
         <v-icon v-on="on">more_vert</v-icon>
       </v-btn>
     </template>
@@ -16,7 +16,7 @@
         <v-toolbar-title>设置</v-toolbar-title>
         <v-spacer></v-spacer>
         <v-toolbar-items>
-          <v-btn dark flat @click="dialog = false">保存</v-btn>
+          <v-btn dark text @click="dialog = false">保存</v-btn>
         </v-toolbar-items>
       </v-toolbar>
 
