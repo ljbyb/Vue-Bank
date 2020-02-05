@@ -8,24 +8,38 @@
       <v-toolbar-title>人脸检测</v-toolbar-title>
     </v-toolbar>
 
-    <!-- 视频窗口 -->
-    <div class="demo-frame">
-      <div class="demo-container">
-        <video id="video" ref="videoDom" width="320" height="240" preload autoplay loop muted></video>
-        <canvas id="canvas" ref="canvasDOM" width="320" height="240"></canvas>
+    <!-- <div id="facelogin"> -->
+    <!--      <h1 class="title is-1">{{FaceisDetected}}</h1>-->
+    <!--       <p>{{FaceisDetected}}</p>-->
+    <div class="content-cam">
+      <div class="camera-wrp sec">
+        <!--          <video ref="videoDom" id="video_cam" preload autoplay loop muted></video>-->
+        <!--          <canvas ref="canvasDOM" id="face_detect"></canvas>-->
+        <video
+          class="video"
+          width="320"
+          height="240"
+          ref="videoDom"
+          id="video_cam"
+          preload
+          autoplay
+          loop
+          muted
+        ></video>
+        <canvas width="320" height="240" ref="canvasDOM"></canvas>
+        <div class="control-btn"></div>
+      </div>
+      <div class="images-wrp sec">
+        <p class="title is-5">Image taken</p>
+        <div
+          v-for="(image, index) in images"
+          :class="`img-item img-item-${index}`"
+          :key="`img-wrp-${index}`"
+          :style="`height:240px; width: 320px; background: url('${image}')`"
+        ></div>
       </div>
     </div>
-
-    <!-- 捕获的头像 -->
-    <div class="images-wrp sec">
-      <p class="title is-5">Image taken</p>
-      <div
-        v-for="(image, index) in images"
-        :class="`img-item img-item-${index}`"
-        :key="`img-wrp-${index}`"
-        :style="`height:240px; width: 320px; background: url('${image}')`"
-      ></div>
-    </div>
+    <!-- </div> -->
   </v-card>
 </template>
 
@@ -77,14 +91,14 @@ export default {
     }
   },
 
-  // computed: {
-  //   FaceisDetected() {
-  //     return this.isdetected
-  //   }
-  // },
-  // created() {
-  //   this.changeView()
-  // },
+  computed: {
+    FaceisDetected() {
+      return this.isdetected
+    }
+  },
+  created() {
+    this.changeView()
+  },
 
   mounted() {
     // The getUserMedia interface is used for handling camera input.
@@ -127,12 +141,12 @@ export default {
       const canvasContext = canvas.getContext('2d')
       let tracker = new tracking.ObjectTracker('face')
 
-      video.pause()
-      video.src = ''
+      // video.pause()
+      // video.src = ''
       tracker.setInitialScale(4)
       tracker.setStepSize(2)
       tracker.setEdgesDensity(0.1)
-      tracking.track('#video', tracker, { camera: true })
+      tracking.track('#video_cam', tracker, { camera: true })
       tracker.on('track', function (event) {
         // const { autoCaptureTrackTraking } = context
         canvasContext.clearRect(0, 0, canvas.width, canvas.height)
@@ -162,10 +176,8 @@ export default {
           // 加入连续检测到人脸次数判断，主要是为了防止其它人脸飞入现象干扰
           if (context.count > 10) {
             context.isdetected = '已检测到人脸，正在登录'
-            console.log('已检测到人脸，正在登录')
-            context.videoEl.stop;
             // context.$router.push({ name: 'pwdlogin' })
-            context.onTakeCam()
+            //   context.onTakeCam()
             context.count = 0
           }
         } else {
@@ -207,7 +219,7 @@ export default {
     },
     onTakeCam() {
       const canvas = document.createElement('canvas')
-      const video = this.$el.querySelector('#video')
+      const video = this.$el.querySelector('#video_cam')
       const canvasContext = canvas.getContext('2d')
 
       if (video.videoWidth && video.videoHeight) {
@@ -302,10 +314,89 @@ export default {
 </script>
 
 <style>
-video,
-canvas {
-  /* margin-left: 230px;
-  margin-top: 120px; */
-  position: absolute;
+* {
+  padding: 0;
+  margin: 0;
 }
+/* .container {
+  position: relative;
+  width: 581px;
+  height: 436px;
+  float: left;
+} */
+.message {
+  float: left;
+}
+video,
+#canvas {
+  position: absolute;
+  width: 581px;
+  height: 436px;
+}
+/*video, #canvas {*/
+/*  position: absolute;*/
+/*  width: 375px;*/
+/*  height: 812px;*/
+/*}*/
+#photo:hover .rect {
+  opacity: 0.75;
+  transition: opacity 0.75s ease-out;
+}
+.rect:hover * {
+  opacity: 1;
+}
+.rect {
+  border-radius: 2px;
+  border: 3px solid white;
+  box-shadow: 0 16px 28px 0 rgba(0, 0, 0, 0.3);
+  cursor: pointer;
+  left: -1000px;
+  opacity: 0;
+  position: absolute;
+  top: -1000px;
+}
+.arrow {
+  border-bottom: 10px solid white;
+  border-left: 10px solid transparent;
+  border-right: 10px solid transparent;
+  height: 0;
+  width: 0;
+  position: absolute;
+  left: 50%;
+  margin-left: -5px;
+  bottom: -12px;
+  opacity: 0;
+}
+input {
+  border: 0px;
+  bottom: -42px;
+  color: #a64ceb;
+  font-size: 15px;
+  height: 30px;
+  left: 50%;
+  margin-left: -90px;
+  opacity: 0;
+  outline: none;
+  position: absolute;
+  text-align: center;
+  width: 180px;
+  transition: opacity 0.35s ease-out;
+}
+#img {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  margin: -173px 0 0 -300px;
+}
+/* 以下样式可以全屏，但是覆盖了标题栏而且有放大 */
+/* video, #canvas  {
+    transform: translateX(-50%) translateY(-50%);
+    top: 50%;
+    left: 50%;
+    min-width: 100%;
+    min-height: 100%;
+    width: auto;
+    height: auto;
+    position: absolute;
+  } */
 </style>

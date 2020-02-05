@@ -10,15 +10,15 @@
       scroll-target="#scrolling-techniques-5"
       scroll-threshold="500"
     >
-<!--      <template v-slot:img="{ props }">-->
-<!--        <v-img-->
-<!--          v-bind="props"-->
-<!--        ></v-img>-->
-<!--      </template>-->
+      <!--      <template v-slot:img="{ props }">-->
+      <!--        <v-img-->
+      <!--          v-bind="props"-->
+      <!--        ></v-img>-->
+      <!--      </template>-->
       <v-app-bar-nav-icon @click="goToFaceDetect">
         <v-icon large>mdi-account-circle</v-icon>
       </v-app-bar-nav-icon>
-<!--      <v-toolbar-title>首页</v-toolbar-title>-->
+      <!--      <v-toolbar-title>首页</v-toolbar-title>-->
       <v-spacer></v-spacer>
       <v-btn icon @click="goToQrcodeScan">
         <v-icon>mdi-qrcode-scan</v-icon>
@@ -42,7 +42,7 @@
     >
       <v-container style="height: 1500px;">
         <!-- 常用菜单-->
-        <v-layout row wrap >
+        <v-layout row wrap>
           <v-flex xs3 sm3 md3 order-md4 order-sm1 v-for="item in menus">
             <v-card v-ripple color="transparent" tile flat align="center">
               <v-card-text>
@@ -64,25 +64,10 @@
           interval="2000"
           delimiter-icon="mdi-circle-medium"
         >
-          <v-carousel-item
-            v-for="(item, i) in slides"
-            :key="i"
-          >
-            <v-sheet
-              color="transparent"
-              height="100%"
-            >
-              <v-row
-                class="fill-height"
-                align="center"
-                justify="center"
-              >
-                <v-card
-                  :color='item.color'
-                  class="mx-auto"
-                  max-width="344"
-                  outlined
-                >
+          <v-carousel-item v-for="(item, i) in slides" :key="i">
+            <v-sheet color="transparent" height="100%">
+              <v-row class="fill-height" align="center" justify="center">
+                <v-card :color="item.color" class="mx-auto" max-width="344" outlined>
                   <v-list-item three-line>
                     <v-list-item-content>
                       <v-list-item-title class="title mb-1">
@@ -92,26 +77,16 @@
                       <v-list-item-subtitle>Greyhound divisely hello coldly fonwderfully</v-list-item-subtitle>
                     </v-list-item-content>
 
-                    <v-list-item-avatar
-                      tile
-                      size="80"
-                      color="grey"
-                    >
+                    <v-list-item-avatar tile size="80" color="grey">
                       <v-img :src="item.img"></v-img>
                     </v-list-item-avatar>
                   </v-list-item>
 
                   <v-card-actions>
-<!--                    <v-btn text>Button</v-btn>-->
-<!--                    <v-btn text>Button</v-btn>-->
-                    <v-chip
-                      class="ma-2"
-                      close
-                      color="white"
-                      outlined
-                    >
-                      <v-icon left>mdi-fire</v-icon>
-                      New Posts Available
+                    <!--                    <v-btn text>Button</v-btn>-->
+                    <!--                    <v-btn text>Button</v-btn>-->
+                    <v-chip class="ma-2" close color="white" outlined>
+                      <v-icon left>mdi-fire</v-icon>New Posts Available
                     </v-chip>
                   </v-card-actions>
                 </v-card>
@@ -119,7 +94,6 @@
             </v-sheet>
           </v-carousel-item>
         </v-carousel>
-
       </v-container>
     </v-sheet>
   </v-card>
@@ -127,7 +101,7 @@
 
 <script>
 export default {
-  data () {
+  data() {
     return {
       menus: [
         { icon: 'mdi-cash-multiple', desc: '现金' },
@@ -171,5 +145,4 @@ export default {
 </script>
 
 <style>
-
 </style>
